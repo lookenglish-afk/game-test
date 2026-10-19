@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bắt Gián Gọi Tên - Trò Chơi Trả Bài Đáng Yêu</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,600&family=Comfortaa:wght@600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone.js/14.8.49/Tone.js"></script>
+    <style>
+        body {
+            font-family: 'Be Vietnam Pro', system-ui, -apple-system, sans-serif;
+            user-select: none;
+            overflow: hidden;
+            background: radial-gradient(circle at 50% 50%, #fdf2f8 0%, #fce7f3 45%, #ede9fe 100%);
+        }
+        .heading-font {
+            font-family: 'Comfortaa', 'Be Vietnam Pro', cursive, sans-serif;
+        }
+        .cockroach {
+            position: absolute;
+            cursor: pointer;
+            transition: opacity 0.3s ease;
+            filter: drop-shadow(0 8px 12px rgba(0,0,0,0.12));
+            z-index: 10;
+        }
+        .cockroach:hover {
+            transform: scale(1.1);
+        }
+        @keyframes flapLeft {
+            0%, 100% { transform: rotate(0deg); }
+            50% { transform: rotate(-18deg); }
+        }
+        @keyframes flapRight {
+            0%, 100% { transform: rotate(0deg); }
+            50% { transform: rotate(18deg); }
+        }
+        .wing-left {
+            transform-origin: 40px 42px;
+            animation: flapLeft 0.12s infinite ease-in-out;
+        }
+        .wing-right {
+            transform-origin: 60px 42px;
+            animation: flapRight 0.12s infinite ease-in-out;
+        }
+        .speech-bubble {
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.95);
+            border: 1.5px solid #ec4899;
+            color: #9d174d;
+            padding: 3px 10px;
+            border-radius: 9999px;
+            font-size: 11px;
+            font-weight: 700;
+            white-space: nowrap;
+            box-shadow: 0 4px 10px rgba(236, 72, 153, 0.15);
+            pointer-events: none;
+            animation: bounceBubble 2.2s infinite ease-in-out;
+            z-index: 20;
+            margin-bottom: 6px;
+        }
+        .speech-bubble::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: #ec4899 transparent transparent transparent;
+        }
+        @keyframes bounceBubble {
+            0%, 100% { transform: translateX(-50%) translateY(0); }
+            50% { transform: translateX(-50%) translateY(-3px); }
+        }
+        .spray-cloud {
+            position: absolute;
+            pointer-events: none;
+            border-radius: 50%;
+            filter: blur(5px);
+            animation: expandCloud 0.75s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            z-index: 35;
+        }
+        @keyframes expandCloud {
+            0% { transform: translate(0, 0) scale(0.25); opacity: 0.95; }
+            100% { transform: translate(var(--tx, 0px), var(--ty, 0px)) scale(2.6); opacity: 0; }
+        }
+        .modal-enter {
+            animation: popIn 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+        @keyframes popIn {
+            0% { transform: scale(0.7); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .vanish-anim {
+            animation: cockroachPoof 0.6s forwards ease-in-out;
+        }
+        @keyframes cockroachPoof {
+            0% { transform: scale(1) rotate(0deg); opacity: 1; }
+            50% { transform: scale(1.6) rotate(180deg); opacity: 0.8; }
+            100% { transform: scale(0) rotate(360deg); opacity: 0; }
+        }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col justify-between relative select-none antialiased text-gray-800">
+
+    <!-- Top Header bar -->
+    <header class="w-full bg-white/85 backdrop-blur-md shadow-sm px-5 py-2.5 flex justify-between items-center z-40 border-b border-pink-100">
+        <div class="flex items-center space-x-3">
+            <div class="bg-gradient-to-tr from-pink-500 to-rose-400 text-white w-10 h-10 rounded-2xl flex items-center justify-center shadow-sm text-xl">
+                🪳
+            </div>
+            <div>
+                <h1 class="text-base font-bold text-gray-900 heading-font flex items-center gap-2">
+                    Bắt Gián Gọi Tên
+                    <span class="bg-pink-100 text-pink-700 text-[11px] font-semibold px-2 py-0.5 rounded-full">Trả bài vui vẻ</span>
+                </h1>
+                <p class="text-xs text-gray-500">Giáo viên xịt trúng bạn nào, bạn đó lên bảng & được gạch tên khỏi lứa bay!</p>
+            </div>
+        </div>
+
+        <div class="flex items-center space-x-2.5">
+            <!-- Remaining counter badge -->
+            <div class="bg-rose-50 border border-rose-200 text-rose-700 px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-sm">
+                <span>🎯 Còn lại:</span>
+                <span id="remainingBadge" class="bg-rose-500 text-white px-2 py-0.5 rounded-full text-[11px] font-bold">0</span>
+            </div>
+
+            <button onclick="toggleAudio()" id="soundBtn" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold px-3 py-1.5 rounded-xl text-xs transition shadow-sm flex items-center space-x-1.5">
+                <span id="soundIcon">🔇</span> <span id="soundText">Âm thanh: Tắt</span>
+            </button>
+            <button onclick="openSettings()" class="bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-700 font-semibold px-3 py-1.5 rounded-xl text-xs transition shadow-sm flex items-center space-x-1">
+                <span>⚙️</span> <span>Học sinh (<span id="studentCount">0</span>)</span>
+            </button>
+            <button onclick="openHistory()" class="bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 font-semibold px-3 py-1.5 rounded-xl text-xs transition shadow-sm flex items-center space-x-1">
+                <span>📜</span> <span>Đã gọi (<span id="historyCount">0</span>)</span>
+            </button>
+            <button onclick="resetRemainingRound()" title="Làm mới lại lượt bay đầy đủ" class="bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 font-semibold px-3 py-1.5 rounded-xl text-xs transition shadow-sm flex items-center space-x-1">
+                <span>🔄</span> <span>Nạp lại lượt</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Game Arena -->
+    <main id="gameArena" class="flex-1 relative overflow-hidden cursor-crosshair">
+        <!-- Floating colorful cockroaches are rendered here -->
+        
+        <!-- Teacher at the exact center of the screen -->
+        <div id="teacherContainer" class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center pointer-events-none z-30">
+            <div id="teacherSpeech" class="bg-white/95 border border-pink-300 text-pink-900 font-bold px-4 py-1.5 rounded-2xl text-xs mb-3 shadow-lg whitespace-nowrap animate-bounce">
+                "Chuẩn bị xịt gọi tên đây! Ai trúng là lên bảng nha! 🎯💨"
+            </div>
+            
+            <!-- Teacher & Spray Rig -->
+            <div class="relative w-32 h-32 flex items-center justify-center">
+                <!-- Cute SVG Teacher Avatar -->
+                <svg id="teacherAvatar" viewBox="0 0 120 120" class="w-28 h-28 filter drop-shadow-xl transition-transform duration-150">
+                    <!-- Hair Back -->
+                    <circle cx="60" cy="52" r="36" fill="#3b2014" />
+                    <circle cx="60" cy="20" r="14" fill="#3b2014" />
+                    <!-- Hair Ribbon -->
+                    <path d="M 48 22 Q 60 28 72 22" stroke="#ec4899" stroke-width="5" fill="none" stroke-linecap="round"/>
+                    <!-- Body / Teacher Dress -->
+                    <path d="M 30 115 C 30 82 90 82 90 115 Z" fill="#ec4899" stroke="#be185d" stroke-width="2.5"/>
+                    <!-- White Collar -->
+                    <path d="M 46 88 L 60 102 L 74 88" fill="#ffffff" stroke="#f472b6" stroke-width="2"/>
+                    <!-- Face -->
+                    <circle cx="60" cy="56" r="26" fill="#ffe4c4" stroke="#f5cba7" stroke-width="1.5"/>
+                    <!-- Front Hair Bangs -->
+                    <path d="M 34 50 Q 45 30 60 40 Q 75 30 86 50 Q 82 32 60 28 Q 38 32 34 50 Z" fill="#3b2014"/>
+                    <!-- Cute Glasses -->
+                    <circle cx="49" cy="56" r="8" fill="rgba(255,255,255,0.4)" stroke="#7c2d12" stroke-width="2.5"/>
+                    <circle cx="71" cy="56" r="8" fill="rgba(255,255,255,0.4)" stroke="#7c2d12" stroke-width="2.5"/>
+                    <line x1="57" y1="56" x2="63" y2="56" stroke="#7c2d12" stroke-width="2.5"/>
+                    <!-- Sparkling Eyes -->
+                    <circle cx="49" cy="56" r="3.5" fill="#1f2937"/>
+                    <circle cx="50.5" cy="54.5" r="1.2" fill="#ffffff"/>
+                    <circle cx="71" cy="56" r="3.5" fill="#1f2937"/>
+                    <circle cx="72.5" cy="54.5" r="1.2" fill="#ffffff"/>
+                    <!-- Rosy Cheeks -->
+                    <ellipse cx="39" cy="63" rx="4.5" ry="2.5" fill="#f472b6" opacity="0.6"/>
+                    <ellipse cx="81" cy="63" rx="4.5" ry="2.5" fill="#f472b6" opacity="0.6"/>
+                    <!-- Happy Smile -->
+                    <path d="M 54 67 Q 60 74 66 67" stroke="#be185d" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+                </svg>
+
+                <!-- Rotating Spray Bottle Arm Rig -->
+                <div id="sprayArm" class="absolute inset-0 flex items-center justify-center pointer-events-none" style="transform: rotate(0deg);">
+                    <div id="sprayBottleWrapper" class="transform translate-x-14 transition-transform duration-100">
+                        <svg viewBox="0 0 70 70" class="w-16 h-16 filter drop-shadow-md overflow-visible">
+                            <!-- Spray Cap & Nozzle -->
+                            <path d="M 26 16 L 38 16 L 40 25 L 24 25 Z" fill="#ef4444" stroke="#b91c1c" stroke-width="1.5"/>
+                            <path d="M 38 20 L 48 24 L 46 28 L 36 24 Z" fill="#fbbf24" stroke="#d97706" stroke-width="1.2"/>
+                            <rect x="38" y="18" width="7" height="4" rx="1" fill="#ffffff" stroke="#b91c1c" stroke-width="1"/>
+                            <path d="M 20 28 Q 32 20 44 28 Z" fill="#e5e7eb" stroke="#9ca3af" stroke-width="1.5"/>
+                            <rect x="20" y="28" width="24" height="34" rx="5" fill="#ec4899" stroke="#be185d" stroke-width="2"/>
+                            <rect x="22" y="34" width="20" height="18" rx="2" fill="#ffffff"/>
+                            <circle cx="32" cy="43" r="6" fill="#fef08a" stroke="#ef4444" stroke-width="1.5"/>
+                            <text x="32" y="46" font-size="9" text-anchor="middle">🪳</text>
+                            <line x1="27" y1="38" x2="37" y2="48" stroke="#ef4444" stroke-width="2"/>
+                            <circle cx="24" cy="44" r="6" fill="#ffe4c4" stroke="#e59866" stroke-width="1.5"/>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Big Spray Button -->
+            <button id="mainSprayBtn" onclick="sprayRandomCockroach(event)" class="mt-3 pointer-events-auto bg-gradient-to-r from-pink-500 via-rose-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-bold px-6 py-2.5 rounded-full shadow-lg border-2 border-white transform hover:scale-105 active:scale-95 transition flex items-center space-x-2 text-sm">
+                <span>💨</span>
+                <span id="sprayBtnText">XỊT NGẪU NHIÊN!</span>
+                <span>🎯</span>
+            </button>
+        </div>
+
+        <!-- Empty state alert when all students are eliminated -->
+        <div id="allEliminatedBanner" class="hidden absolute inset-0 bg-white/70 backdrop-blur-sm flex flex-col items-center justify-center z-25">
+            <div class="bg-white p-8 rounded-3xl shadow-2xl border-2 border-purple-200 text-center max-w-sm mx-4 modal-enter">
+                <div class="text-5xl mb-3">🎉</div>
+                <h3 class="text-xl font-bold text-purple-950 heading-font mb-2">Đã gọi hết học sinh!</h3>
+                <p class="text-xs text-gray-500 mb-5">Tất cả các bạn gián trong danh sách đều đã được xịt và trả bài xong rồi!</p>
+                <button onclick="resetRemainingRound()" class="bg-gradient-to-r from-pink-500 to-purple-600 text-white font-bold px-6 py-2.5 rounded-xl shadow-md hover:opacity-95 transition text-sm">
+                    🔄 Bắt đầu vòng mới
+                </button>
+            </div>
+        </div>
+
+        <!-- Instructions hint -->
+        <div class="absolute top-4 left-1/2 transform -translate-x-1/2 bg-white/90 backdrop-blur-sm px-5 py-1.5 rounded-full text-xs font-semibold text-gray-700 shadow-sm pointer-events-none border border-pink-100 z-30 flex items-center gap-1.5">
+            <span class="text-pink-500 font-bold">Mẹo:</span> Nhấn phím <kbd class="px-2 py-0.5 bg-gray-100 border border-gray-300 rounded text-[11px] font-mono text-gray-800">Space</kbd> hoặc click chuột bất kỳ đâu để cô giáo xịt ngẫu nhiên!
+        </div>
+    </main>
+
+    <!-- Selection celebration modal -->
+    <div id="celebrationModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm hidden flex items-center justify-center z-50">
+        <div class="bg-white rounded-3xl p-7 max-w-md w-full mx-4 shadow-2xl border border-pink-200 modal-enter text-center relative overflow-hidden">
+            <div class="text-5xl mb-2 animate-bounce" id="modalCockroachIcon">🪳💨</div>
+            <span class="inline-block bg-pink-100 text-pink-700 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider mb-2">Đã Bị Xịt Trúng!</span>
+            <h2 id="modalStudentName" class="text-2xl font-extrabold text-gray-900 heading-font mt-1 mb-1">Tên Học Sinh</h2>
+            <p id="modalQuote" class="text-gray-600 text-xs italic mb-4 leading-relaxed">"Em xin phép lên bảng trả bài ạ!"</p>
+
+            <div class="bg-rose-50 border border-rose-100 text-rose-700 text-xs py-2 px-3 rounded-xl mb-5 font-medium flex items-center justify-center gap-1.5">
+                <span>⚡ Bạn này đã được đưa vào lịch sử & loại khỏi bầu trời bay!</span>
+            </div>
+
+            <div class="flex space-x-3 justify-center">
+                <button onclick="closeModalAndContinue()" class="bg-gradient-to-r from-pink-500 to-purple-600 text-white font-bold px-6 py-2.5 rounded-xl shadow-md hover:opacity-90 transform hover:scale-105 transition text-sm">
+                    Tiếp Tục Xịt Bạn Khác! 🚀
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Student List Customization Modal -->
+    <div id="settingsModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm hidden flex items-center justify-center z-50">
+        <div class="bg-white rounded-3xl p-6 max-w-lg w-full mx-4 shadow-2xl border border-purple-200 modal-enter flex flex-col max-h-[85vh]">
+            <div class="flex justify-between items-center mb-3 pb-2 border-b border-gray-100">
+                <h3 class="text-lg font-bold text-gray-900 heading-font flex items-center gap-2"><span>⚙️</span> Danh Sách Học Sinh</h3>
+                <button onclick="closeSettings()" class="text-gray-400 hover:text-gray-600 font-bold text-base">✕</button>
+            </div>
+            
+            <p class="text-xs text-gray-500 mb-3">Mỗi học sinh một dòng hoặc cách nhau bằng dấu phẩy. Các em sẽ hóa thân thành những chú gián đáng yêu!</p>
+            
+            <textarea id="studentInputArea" class="w-full flex-1 border border-gray-300 rounded-xl p-3 text-sm focus:outline-none focus:border-pink-500 focus:ring-2 focus:ring-pink-200 resize-none font-medium text-gray-700 mb-4" rows="8"></textarea>
+
+            <div class="flex justify-between items-center">
+                <button onclick="resetDefaultStudents()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold px-4 py-2 rounded-xl text-xs transition">
+                    Mặc định 🔄
+                </button>
+                <div class="flex space-x-2">
+                    <button onclick="closeSettings()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold px-4 py-2 rounded-xl text-xs transition">
+                        Hủy
+                    </button>
+                    <button onclick="saveStudents()" class="bg-pink-600 hover:bg-pink-700 text-white font-bold px-5 py-2 rounded-xl text-xs transition shadow-sm">
+                        Lưu & Tạo Lượt Mới ✨
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- History Modal -->
+    <div id="historyModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm hidden flex items-center justify-center z-50">
+        <div class="bg-white rounded-3xl p-6 max-w-md w-full mx-4 shadow-2xl border border-amber-200 modal-enter flex flex-col max-h-[80vh]">
+            <div class="flex justify-between items-center mb-3 pb-2 border-b border-gray-100">
+                <h3 class="text-lg font-bold text-gray-900 heading-font flex items-center gap-2"><span>📜</span> Học Sinh Đã Lên Bảng</h3>
+                <button onclick="closeHistory()" class="text-gray-400 hover:text-gray-600 font-bold text-base">✕</button>
+            </div>
+            
+            <div id="historyListContainer" class="flex-1 overflow-y-auto space-y-2 pr-1 mb-4 text-xs">
+                <!-- History items appended here -->
+                <div class="text-center text-gray-400 py-8">Chưa có học sinh nào bị xịt trúng!</div>
+            </div>
+
+            <div class="flex justify-between items-center pt-2 border-t border-gray-100">
+                <button onclick="clearHistory()" class="text-red-500 hover:text-red-700 text-xs font-bold px-3 py-1.5 rounded-lg transition">
+                    Xóa Lịch Sử 🗑️
+                </button>
+                <button onclick="closeHistory()" class="bg-amber-500 hover:bg-amber-600 text-white font-bold px-4 py-2 rounded-xl text-xs transition shadow-sm">
+                    Đóng
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Default student list
+        const defaultStudents = [
+            "Bảo Ngọc 🌸", "Gia Hân ✨", "Minh Khôi 🚀", "Thảo Vy 🎨", 
+            "Đức Huy ⚡", "Hà An 🐼", "Quang Minh 💡", "Khánh Linh 🍓",
+            "Tuấn Kiệt ⚽", "Phương Linh 🌙", "Hoàng Long 🐉", "Diễm Quỳnh 🌷"
+        ];
+
+        let students = JSON.parse(localStorage.getItem('cockroach_students_v2')) || defaultStudents;
+        let historyLog = JSON.parse(localStorage.getItem('cockroach_history_v2')) || [];
+        
+        // Active cockroaches in current round (students who haven't been eliminated yet)
+        let activeCockroaches = [];
+        let isAudioEnabled = false;
+        let isSpraying = false;
+        let synth, noiseSynth;
+        let lastEliminatedCockroach = null;
+
+        const funnyDialogues = [
+            "Đừng gọi em thầy ơi! 😭",
+            "Em chưa ôn bài này ạ! 🙈",
+            "Chọn bạn khác đi cô ơi! 🌿",
+            "Em trốn đây nè! 🏃‍♂️",
+            "Trời ơi cứu con! 🐥",
+            "Em mới thuộc sơ sơ thui! ✨",
+            "Chọn em là em trả được đấy! 😎",
+            "Hôm nay em ngoan mà! 🌸",
+            "Cho em xin điểm 10 nha! 🌟",
+            "Đừng xịt em, em sợ thuốc! 💦"
+        ];
+
+        const colors = [
+            { bg: '#f43f5e', wing: '#fda4af', stroke: '#9f1239' },
+            { bg: '#8b5cf6', wing: '#c4b5fd', stroke: '#4c1d95' },
+            { bg: '#06b6d4', wing: '#67e8f9', stroke: '#155e75' },
+            { bg: '#10b981', wing: '#6ee7b7', stroke: '#065f46' },
+            { bg: '#f59e0b', wing: '#fde047', stroke: '#92400e' },
+            { bg: '#ec4899', wing: '#f9a8d4', stroke: '#831843' },
+            { bg: '#3b82f6', wing: '#93c5fd', stroke: '#1e40af' }
+        ];
+
+        function getCockroachSVG(colorObj) {
+            return `
+                <svg viewBox="0 0 100 110" class="w-16 h-16 overflow-visible filter drop-shadow">
+                    <!-- Antennae -->
+                    <path d="M 43 26 Q 22 4 8 12" fill="none" stroke="${colorObj.stroke}" stroke-width="2.5" stroke-linecap="round"/>
+                    <path d="M 57 26 Q 78 4 92 12" fill="none" stroke="${colorObj.stroke}" stroke-width="2.5" stroke-linecap="round"/>
+                    <circle cx="8" cy="12" r="2.5" fill="${colorObj.bg}"/>
+                    <circle cx="92" cy="12" r="2.5" fill="${colorObj.bg}"/>
+
+                    <!-- 6 Legs -->
+                    <g stroke="${colorObj.stroke}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none">
+                        <path d="M 35 44 L 16 34 L 10 40"/>
+                        <path d="M 65 44 L 84 34 L 90 40"/>
+                        <path d="M 32 58 L 12 58 L 6 66"/>
+                        <path d="M 68 58 L 88 58 L 94 66"/>
+                        <path d="M 35 74 L 16 86 L 10 96"/>
+                        <path d="M 65 74 L 84 86 L 90 96"/>
+                    </g>
+
+                    <!-- Body -->
+                    <ellipse cx="50" cy="62" rx="20" ry="27" fill="${colorObj.bg}" stroke="${colorObj.stroke}" stroke-width="2.5"/>
+                    <path d="M 33 58 Q 50 64 67 58" fill="none" stroke="${colorObj.stroke}" stroke-width="1.8" opacity="0.5"/>
+                    <path d="M 34 68 Q 50 74 66 68" fill="none" stroke="${colorObj.stroke}" stroke-width="1.8" opacity="0.5"/>
+                    <path d="M 38 78 Q 50 83 62 78" fill="none" stroke="${colorObj.stroke}" stroke-width="1.8" opacity="0.5"/>
+
+                    <!-- Wings -->
+                    <g class="wing-left">
+                        <ellipse cx="38" cy="60" rx="13" ry="24" transform="rotate(14 38 60)" fill="${colorObj.wing}" fill-opacity="0.85" stroke="${colorObj.stroke}" stroke-width="2"/>
+                        <path d="M 38 42 L 32 72" stroke="${colorObj.stroke}" stroke-width="1" opacity="0.4"/>
+                    </g>
+                    <g class="wing-right">
+                        <ellipse cx="62" cy="60" rx="13" ry="24" transform="rotate(-14 62 60)" fill="${colorObj.wing}" fill-opacity="0.85" stroke="${colorObj.stroke}" stroke-width="2"/>
+                        <path d="M 62 42 L 68 72" stroke="${colorObj.stroke}" stroke-width="1" opacity="0.4"/>
+                    </g>
+
+                    <!-- Pronotum / Head -->
+                    <ellipse cx="50" cy="36" rx="15" ry="11" fill="${colorObj.bg}" stroke="${colorObj.stroke}" stroke-width="2.5"/>
+
+                    <!-- Eyes -->
+                    <circle cx="43" cy="31" r="6" fill="#ffffff" stroke="${colorObj.stroke}" stroke-width="1.8"/>
+                    <circle cx="43" cy="30" r="3" fill="#111827"/>
+                    <circle cx="44.5" cy="28.5" r="1.2" fill="#ffffff"/>
+
+                    <circle cx="57" cy="31" r="6" fill="#ffffff" stroke="${colorObj.stroke}" stroke-width="1.8"/>
+                    <circle cx="57" cy="30" r="3" fill="#111827"/>
+                    <circle cx="58.5" cy="28.5" r="1.2" fill="#ffffff"/>
+
+                    <!-- Smile -->
+                    <ellipse cx="36" cy="36" rx="3" ry="1.8" fill="#f43f5e" opacity="0.7"/>
+                    <ellipse cx="64" cy="36" rx="3" ry="1.8" fill="#f43f5e" opacity="0.7"/>
+                    <path d="M 46 37 Q 50 41 54 37" fill="none" stroke="${colorObj.stroke}" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+            `;
+        }
+
+        // Initialize Audio using Tone.js
+        function initAudio() {
+            if (synth) return;
+            try {
+                synth = new Tone.Synth().toDestination();
+                noiseSynth = new Tone.NoiseSynth({
+                    noise: { type: 'white' },
+                    envelope: { attack: 0.005, decay: 0.2, sustain: 0 }
+                }).toDestination();
+            } catch(e) {}
+        }
+
+        function toggleAudio() {
+            initAudio();
+            isAudioEnabled = !isAudioEnabled;
+            const btn = document.getElementById('soundBtn');
+            const icon = document.getElementById('soundIcon');
+            const text = document.getElementById('soundText');
+
+            if (isAudioEnabled) {
+                icon.innerText = "🔊";
+                text.innerText = "Âm thanh: Bật";
+                btn.className = "bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 font-semibold px-3 py-1.5 rounded-xl text-xs transition shadow-sm flex items-center space-x-1.5";
+                if (Tone && Tone.context && Tone.context.state !== 'running') {
+                    Tone.start();
+                }
+            } else {
+                icon.innerText = "🔇";
+                text.innerText = "Âm thanh: Tắt";
+                btn.className = "bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold px-3 py-1.5 rounded-xl text-xs transition shadow-sm flex items-center space-x-1.5";
+            }
+        }
+
+        function playSpraySound() {
+            if (!isAudioEnabled || !noiseSynth) return;
+            try {
+                noiseSynth.triggerAttackRelease("0.25");
+            } catch(e) {}
+        }
+
+        function playSelectSound() {
+            if (!isAudioEnabled || !synth) return;
+            try {
+                const now = Tone.now();
+                synth.triggerAttackRelease("C5", "8n", now);
+                synth.triggerAttackRelease("E5", "8n", now + 0.1);
+                synth.triggerAttackRelease("G5", "4n", now + 0.2);
+            } catch(e) {}
+        }
+
+        class Cockroach {
+            constructor(name, index) {
+                this.name = name;
+                this.id = 'roach_' + index + '_' + Math.random().toString(36).substring(2, 7);
+                this.colorObj = colors[index % colors.length];
+                this.dialogue = funnyDialogues[Math.floor(Math.random() * funnyDialogues.length)];
+                this.isFrozen = false;
+                
+                const arena = document.getElementById('gameArena');
+                const centerX = arena.clientWidth / 2;
+                const centerY = arena.clientHeight / 2;
+                
+                do {
+                    this.x = Math.random() * (arena.clientWidth - 140) + 60;
+                    this.y = Math.random() * (arena.clientHeight - 180) + 70;
+                } while (Math.hypot(this.x - centerX, this.y - centerY) < 130);
+
+                const speed = 1.4 + Math.random() * 1.3;
+                const dir = Math.random() * Math.PI * 2;
+                this.vx = Math.cos(dir) * speed;
+                this.vy = Math.sin(dir) * speed;
+                this.scale = 0.85 + Math.random() * 0.2;
+
+                this.createElement();
+            }
+
+            createElement() {
+                const arena = document.getElementById('gameArena');
+                const el = document.createElement('div');
+                el.id = this.id;
+                el.className = 'cockroach flex flex-col items-center';
+                el.style.left = `${this.x}px`;
+                el.style.top = `${this.y}px`;
+
+                el.innerHTML = `
+                    <div class="speech-bubble">${this.dialogue}</div>
+                    <div class="roach-body transition-transform duration-75 flex items-center justify-center" style="transform: scale(${this.scale});">
+                        ${getCockroachSVG(this.colorObj)}
+                    </div>
+                    <span class="-mt-2 bg-white/95 text-gray-900 font-bold text-xs px-2.5 py-0.5 rounded-full shadow border whitespace-nowrap z-20" style="border-color: ${this.colorObj.bg}">
+                        ${this.name}
+                    </span>
+                `;
+
+                // Clicking directly on cockroach triggers random spray fair and square
+                el.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    sprayRandomCockroach();
+                });
+
+                arena.appendChild(el);
+                this.element = el;
+                this.bodyEl = el.querySelector('.roach-body');
+            }
+
+            update() {
+                if (this.isFrozen) return;
+                const arena = document.getElementById('gameArena');
+                const maxX = arena.clientWidth - 90;
+                const maxY = arena.clientHeight - 100;
+
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // Wall bounces
+                if (this.x < 15 || this.x > maxX) {
+                    this.vx *= -1;
+                    this.x = Math.max(15, Math.min(this.x, maxX));
+                }
+                if (this.y < 35 || this.y > maxY) {
+                    this.vy *= -1;
+                    this.y = Math.max(35, Math.min(this.y, maxY));
+                }
+
+                // Smooth repulsion from teacher in the center
+                const centerX = arena.clientWidth / 2 - 40;
+                const centerY = arena.clientHeight / 2 - 40;
+                const dx = this.x - centerX;
+                const dy = this.y - centerY;
+                const distFromTeacher = Math.hypot(dx, dy);
+                if (distFromTeacher < 100 && distFromTeacher > 0) {
+                    this.vx += (dx / distFromTeacher) * 0.35;
+                    this.vy += (dy / distFromTeacher) * 0.35;
+                }
+
+                // Gentle natural wandering
+                if (Math.random() < 0.04) {
+                    this.vx += (Math.random() - 0.5) * 0.8;
+                    this.vy += (Math.random() - 0.5) * 0.8;
+                    const speed = Math.hypot(this.vx, this.vy);
+                    if (speed > 3.2) {
+                        this.vx = (this.vx / speed) * 3.2;
+                        this.vy = (this.vy / speed) * 3.2;
+                    }
+                    if (speed < 0.9) {
+                        this.vx *= 1.3;
+                        this.vy *= 1.3;
+                    }
+                }
+
+                if (this.element && this.bodyEl) {
+                    this.element.style.left = `${this.x}px`;
+                    this.element.style.top = `${this.y}px`;
+                    const rot = Math.atan2(this.vy, this.vx) * (180 / Math.PI) + 90;
+                    this.bodyEl.style.transform = `scale(${this.scale}) rotate(${rot}deg)`;
+                }
+            }
+
+            destroy() {
+                if (this.element) {
+                    this.element.remove();
+                }
+            }
+        }
+
+        function initRound() {
+            // Clear any lingering cockroaches in arena
+            activeCockroaches.forEach(c => c.destroy());
+            activeCockroaches = [];
+
+            // Spawn only active students
+            students.forEach((name, idx) => {
+                activeCockroaches.push(new Cockroach(name, idx));
+            });
+
+            updateCountersUI();
+            checkEmptyState();
+        }
+
+        function resetRemainingRound() {
+            initRound();
+            const teacherSpeech = document.getElementById('teacherSpeech');
+            if (teacherSpeech) {
+                teacherSpeech.innerText = "Đã nạp lại đủ các bạn gián! Sẵn sàng xịt tiếp nào! 🎯💨";
+            }
+        }
+
+        function updateCountersUI() {
+            document.getElementById('studentCount').innerText = students.length;
+            document.getElementById('remainingBadge').innerText = activeCockroaches.length;
+            document.getElementById('historyCount').innerText = historyLog.length;
+        }
+
+        function checkEmptyState() {
+            const banner = document.getElementById('allEliminatedBanner');
+            const mainSprayBtn = document.getElementById('mainSprayBtn');
+            const sprayBtnText = document.getElementById('sprayBtnText');
+
+            if (activeCockroaches.length === 0) {
+                banner.classList.remove('hidden');
+                mainSprayBtn.classList.add('opacity-50', 'pointer-events-none');
+                sprayBtnText.innerText = "HẾT HỌC SINH!";
+            } else {
+                banner.classList.add('hidden');
+                mainSprayBtn.classList.remove('opacity-50', 'pointer-events-none');
+                sprayBtnText.innerText = "XỊT NGẪU NHIÊN!";
+            }
+        }
+
+        // Main game animation loop
+        function gameLoop() {
+            activeCockroaches.forEach(c => c.update());
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Aiming teacher's spray bottle
+        function aimTeacher(targetX, targetY) {
+            const arena = document.getElementById('gameArena');
+            if (!arena) return;
+            const centerX = arena.clientWidth / 2;
+            const centerY = arena.clientHeight / 2;
+
+            const angleRad = Math.atan2(targetY - centerY, targetX - centerX);
+            const angleDeg = angleRad * (180 / Math.PI);
+
+            const sprayArm = document.getElementById('sprayArm');
+            const sprayBottleWrapper = document.getElementById('sprayBottleWrapper');
+            if (sprayArm && sprayBottleWrapper) {
+                sprayArm.style.transform = `rotate(${angleDeg}deg)`;
+                if (Math.abs(angleDeg) > 90) {
+                    sprayBottleWrapper.style.transform = `translateX(56px) scaleY(-1)`;
+                } else {
+                    sprayBottleWrapper.style.transform = `translateX(56px) scaleY(1)`;
+                }
+            }
+        }
+
+        function triggerSprayEffect(targetX, targetY) {
+            playSpraySound();
+            aimTeacher(targetX, targetY);
+
+            const avatar = document.getElementById('teacherAvatar');
+            if (avatar) {
+                avatar.style.transform = 'scale(1.12)';
+                setTimeout(() => { avatar.style.transform = 'scale(1)'; }, 180);
+            }
+
+            createSmokeStream(targetX, targetY);
+        }
+
+        function createSmokeStream(targetX, targetY) {
+            const arena = document.getElementById('gameArena');
+            const centerX = arena.clientWidth / 2;
+            const centerY = arena.clientHeight / 2;
+
+            const angle = Math.atan2(targetY - centerY, targetX - centerX);
+            const nozzleX = centerX + Math.cos(angle) * 68;
+            const nozzleY = centerY + Math.sin(angle) * 68;
+
+            const cloudColors = [
+                'rgba(244, 63, 94, 0.75)',
+                'rgba(168, 85, 247, 0.75)',
+                'rgba(6, 182, 212, 0.75)',
+                'rgba(16, 185, 129, 0.75)',
+                'rgba(250, 204, 21, 0.8)'
+            ];
+
+            const streamCount = 14;
+            for (let i = 0; i < streamCount; i++) {
+                const progress = i / streamCount;
+                const cloud = document.createElement('div');
+                cloud.className = 'spray-cloud';
+
+                const size = 20 + progress * 55 + Math.random() * 20;
+                const pathX = nozzleX + (targetX - nozzleX) * progress;
+                const pathY = nozzleY + (targetY - nozzleY) * progress;
+
+                const spreadX = (Math.random() - 0.5) * (60 * progress + 12);
+                const spreadY = (Math.random() - 0.5) * (60 * progress + 12);
+
+                cloud.style.width = `${size}px`;
+                cloud.style.height = `${size}px`;
+                cloud.style.left = `${pathX - size / 2}px`;
+                cloud.style.top = `${pathY - size / 2}px`;
+                cloud.style.setProperty('--tx', `${spreadX}px`);
+                cloud.style.setProperty('--ty', `${spreadY}px`);
+                cloud.style.background = `radial-gradient(circle, ${cloudColors[i % cloudColors.length]} 20%, transparent 75%)`;
+
+                arena.appendChild(cloud);
+                setTimeout(() => cloud.remove(), 750);
+            }
+
+            // Burst clouds at target
+            for (let j = 0; j < 9; j++) {
+                const burst = document.createElement('div');
+                burst.className = 'spray-cloud';
+                const size = 55 + Math.random() * 65;
+                const burstAngle = Math.random() * Math.PI * 2;
+                const burstDist = 15 + Math.random() * 65;
+
+                burst.style.width = `${size}px`;
+                burst.style.height = `${size}px`;
+                burst.style.left = `${targetX - size / 2}px`;
+                burst.style.top = `${targetY - size / 2}px`;
+                burst.style.setProperty('--tx', `${Math.cos(burstAngle) * burstDist}px`);
+                burst.style.setProperty('--ty', `${Math.sin(burstAngle) * burstDist}px`);
+                burst.style.background = `radial-gradient(circle, ${cloudColors[Math.floor(Math.random() * cloudColors.length)]} 25%, transparent 75%)`;
+
+                arena.appendChild(burst);
+                setTimeout(() => burst.remove(), 750);
+            }
+        }
+
+        function sprayRandomCockroach(e) {
+            if (e) e.stopPropagation();
+            if (isSpraying || activeCockroaches.length === 0) return;
+            const modal = document.getElementById('celebrationModal');
+            if (modal && !modal.classList.contains('hidden')) return;
+
+            isSpraying = true;
+
+            // Pick a completely random cockroach from remaining active group
+            const randomIndex = Math.floor(Math.random() * activeCockroaches.length);
+            const chosen = activeCockroaches[randomIndex];
+            lastEliminatedCockroach = chosen;
+
+            // Freeze chosen cockroach
+            chosen.isFrozen = true;
+            if (chosen.element) {
+                chosen.element.style.zIndex = '38';
+                const bubble = chosen.element.querySelector('.speech-bubble');
+                if (bubble) {
+                    bubble.innerText = "Á á cứu em! Trúng em rồi! 😱💨";
+                    bubble.style.borderColor = "#ef4444";
+                    bubble.style.color = "#b91c1c";
+                }
+            }
+
+            const targetX = chosen.x + 40;
+            const targetY = chosen.y + 40;
+
+            triggerSprayEffect(targetX, targetY);
+
+            // Give smoke time to hit before showing modal & eliminating
+            setTimeout(() => {
+                selectAndEliminateStudent(chosen, randomIndex);
+                isSpraying = false;
+            }, 550);
+        }
+
+        function selectAndEliminateStudent(cockroach, index) {
+            playSelectSound();
+
+            // Add dramatic poof animation
+            if (cockroach.element) {
+                cockroach.element.classList.add('vanish-anim');
+            }
+
+            // Remove from active list (ELIMINATE)
+            activeCockroaches.splice(index, 1);
+            updateCountersUI();
+
+            // Save to history log
+            const record = {
+                name: cockroach.name,
+                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+                date: new Date().toLocaleDateString()
+            };
+            historyLog.unshift(record);
+            localStorage.setItem('cockroach_history_v2', JSON.stringify(historyLog));
+            updateHistoryUI();
+
+            // Show popup
+            document.getElementById('modalStudentName').innerText = cockroach.name;
+            document.getElementById('modalQuote').innerText = `"${cockroach.dialogue}"`;
+            document.getElementById('celebrationModal').classList.remove('hidden');
+
+            const teacherSpeech = document.getElementById('teacherSpeech');
+            if (teacherSpeech) {
+                teacherSpeech.innerText = `🎯 Tuyệt vời! Mời bạn ${cockroach.name} lên bảng trả bài nào!`;
+            }
+        }
+
+        function closeModalAndContinue() {
+            document.getElementById('celebrationModal').classList.add('hidden');
+            
+            // Clean up the eliminated element completely from DOM
+            if (lastEliminatedCockroach && lastEliminatedCockroach.element) {
+                lastEliminatedCockroach.destroy();
+                lastEliminatedCockroach = null;
+            }
+
+            checkEmptyState();
+
+            const teacherSpeech = document.getElementById('teacherSpeech');
+            if (teacherSpeech && activeCockroaches.length > 0) {
+                teacherSpeech.innerText = `Còn ${activeCockroaches.length} bạn nữa! Ai sẽ là người tiếp theo đây? 🎯💨`;
+            }
+        }
+
+        // Global spacebar shortcut
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                const settingsModal = document.getElementById('settingsModal');
+                const historyModal = document.getElementById('historyModal');
+                const celebModal = document.getElementById('celebrationModal');
+
+                if (settingsModal.classList.contains('hidden') && 
+                    historyModal.classList.contains('hidden') && 
+                    celebModal.classList.contains('hidden')) {
+                    e.preventDefault();
+                    sprayRandomCockroach();
+                } else if (!celebModal.classList.contains('hidden')) {
+                    e.preventDefault();
+                    closeModalAndContinue();
+                }
+            }
+        });
+
+        function openSettings() {
+            document.getElementById('studentInputArea').value = students.join('\n');
+            document.getElementById('settingsModal').classList.remove('hidden');
+        }
+
+        function closeSettings() {
+            document.getElementById('settingsModal').classList.add('hidden');
+        }
+
+        function saveStudents() {
+            const rawText = document.getElementById('studentInputArea').value;
+            const parsed = rawText
+                .split(/[\n,]+/)
+                .map(s => s.trim())
+                .filter(s => s.length > 0);
+
+            if (parsed.length === 0) {
+                alert('Vui lòng nhập ít nhất một tên học sinh!');
+                return;
+            }
+
+            students = parsed;
+            localStorage.setItem('cockroach_students_v2', JSON.stringify(students));
+            closeSettings();
+            initRound();
+        }
+
+        function resetDefaultStudents() {
+            students = [...defaultStudents];
+            document.getElementById('studentInputArea').value = students.join('\n');
+        }
+
+        function openHistory() {
+            updateHistoryUI();
+            document.getElementById('historyModal').classList.remove('hidden');
+        }
+
+        function closeHistory() {
+            document.getElementById('historyModal').classList.add('hidden');
+        }
+
+        function updateHistoryUI() {
+            const container = document.getElementById('historyListContainer');
+            document.getElementById('historyCount').innerText = historyLog.length;
+            
+            if (historyLog.length === 0) {
+                container.innerHTML = `<div class="text-center text-gray-400 py-8">Chưa có học sinh nào bị xịt trúng!</div>`;
+                return;
+            }
+
+            container.innerHTML = historyLog.map((item, idx) => `
+                <div class="flex justify-between items-center bg-amber-50/70 border border-amber-200/80 px-3.5 py-2 rounded-xl">
+                    <div class="flex items-center space-x-2">
+                        <span class="bg-amber-200 text-amber-800 font-bold text-[11px] w-5 h-5 flex items-center justify-center rounded-full">#${historyLog.length - idx}</span>
+                        <span class="font-bold text-gray-900">${item.name}</span>
+                    </div>
+                    <span class="text-[11px] text-gray-500 font-medium">${item.time}</span>
+                </div>
+            `).join('');
+        }
+
+        function clearHistory() {
+            historyLog = [];
+            localStorage.removeItem('cockroach_history_v2');
+            updateHistoryUI();
+            updateCountersUI();
+        }
+
+        window.onload = function() {
+            initRound();
+            requestAnimationFrame(gameLoop);
+
+            const arena = document.getElementById('gameArena');
+            if (arena) {
+                arena.addEventListener('click', (e) => {
+                    sprayRandomCockroach(e);
+                });
+                arena.addEventListener('mousemove', (e) => {
+                    const rect = arena.getBoundingClientRect();
+                    aimTeacher(e.clientX - rect.left, e.clientY - rect.top);
+                });
+            }
+        };
+    </script>
+</body>
+</html>
